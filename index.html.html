@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TFM Gantt">
+<meta name="theme-color" content="#0a0c10">
+<title>TFM Gantt</title>
+
+<!-- ═══════════════════════════════════════════
+     🔥 FIREBASE CONFIG — RELLENA ESTOS VALORES
+     ═══════════════════════════════════════════ -->
+<script>
+  const FIREBASE_CONFIG = {
+    apiKey:            "AIzaSyA_bM_ERYTun08m1zlw_1bLY6R1N8awkWo",
+    authDomain:        "tfm-gantt.firebaseapp.com",
+    projectId:         "tfm-gantt",
+    storageBucket:     "tfm-gantt.firebasestorage.app",
+    messagingSenderId: "777924753151",
+    appId:             "1:777924753151:web:55b9ddde4c7864d339feca"
+  };
+  // ID único de tu proyecto (cualquier texto sin espacios)
+  const PROJECT_ID = "mi-tfm-2025";
+</script>
+
+<style>
+:root {
+  --bg:#0a0c10; --surface:#111318; --surface2:#161924;
+  --border:#1e2130; --border2:#252840;
+  --text:#e8eaf0; --muted:#5a5f78; --muted2:#3a3f58;
+  --accent:#5b8dee; --f1:#2dd4bf; --f2:#38bdf8;
+  --f3:#a78bfa; --f4:#fbbf24; --f5:#f472b6;
+  --danger:#fb7185; --success:#34d399; --warn:#fb923c;
+  --safe-top:env(safe-area-inset-top,0px);
+  --safe-bottom:env(safe-area-inset-bottom,0px);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',system-ui,sans-serif}
+
+#app{display:flex;flex-direction:column;height:100%;height:100dvh}
+
+/* ── TOP BAR ── */
+.topbar{padding:calc(var(--safe-top) + 10px) 16px 10px;background:var(--bg);
+  border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;
+  position:relative;z-index:100;flex-shrink:0}
+.topbar-title{flex:1}
+.topbar-title h1{font-size:17px;font-weight:700;letter-spacing:-.3px}
+.topbar-title p{font-size:11px;color:var(--muted);margin-top:1px}
+.icon-btn{width:36px;height:36px;border-radius:10px;border:1px solid var(--border2);
+  background:var(--surface);color:var(--text);font-size:16px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s}
+.icon-btn:active{background:var(--border2)}
+
+/* sync indicator */
+.sync-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .3s}
+.sync-dot.synced{background:var(--success)}
+.sync-dot.syncing{background:var(--warn);animation:pulse 1s infinite}
+.sync-dot.error{background:var(--danger)}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.5)}}
+
+/* ── TABS ── */
+.tabs{display:flex;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
+.tab{flex:1;padding:10px 4px;text-align:center;font-size:11px;font-weight:600;
+  color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;
+  transition:color .15s,border-color .15s;letter-spacing:.2px}
+.tab.active{color:var(--accent);border-color:var(--accent)}
+
+/* ── SCROLL AREAS ── */
+.view{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+.view.hidden{display:none}
+
+/* ── BANNER ── */
+.today-banner{margin:12px 16px 0;
+  background:linear-gradient(135deg,rgba(91,141,238,.15),rgba(167,139,250,.1));
+  border:1px solid rgba(91,141,238,.3);border-radius:12px;padding:12px 14px;
+  display:flex;align-items:center;gap:10px}
+.today-banner .pulse-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);
+  flex-shrink:0;animation:pulse 2s ease infinite}
+.today-banner-text{flex:1}
+.today-banner-text strong{font-size:13px;display:block}
+.today-banner-text span{font-size:11px;color:var(--muted)}
+.today-banner .days-left{font-size:22px;font-weight:800;color:var(--accent);white-space:nowrap}
+
+/* ── CARDS ── */
+.overview-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px 16px 0}
+.ov-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px}
+.ov-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.15em;margin-bottom:4px}
+.ov-val{font-size:24px;font-weight:800;line-height:1}
+.ov-sub{font-size:10px;color:var(--muted);margin-top:3px}
+.mini-bar{height:3px;background:var(--border);border-radius:2px;margin-top:8px;overflow:hidden}
+.mini-bar-fill{height:100%;border-radius:2px;transition:width .5s}
+
+/* ── SECTION HEADER ── */
+.section-header{padding:16px 16px 8px;display:flex;align-items:center;justify-content:space-between}
+.section-header h2{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.15em}
+.section-header button{font-size:12px;color:var(--accent);background:none;border:none;cursor:pointer;font-weight:600}
+
+/* ── GANTT ── */
+.gantt-wrap{padding:0 16px 16px}
+.gantt-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:12px;border:1px solid var(--border)}
+.gantt-inner{min-width:600px}
+.g-months{display:grid;grid-template-columns:100px repeat(14,1fr);background:var(--surface2);border-bottom:1px solid var(--border)}
+.g-month-lbl{padding:6px 8px;font-size:9px;color:var(--muted);font-weight:600;letter-spacing:.1em;text-transform:uppercase;border-right:1px solid var(--border);display:flex;align-items:center}
+.g-month-cell{padding:6px 2px;text-align:center;font-size:8px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text);border-right:1px solid var(--border)}
+.g-month-cell:last-child{border-right:none}
+.g-weeks{display:grid;grid-template-columns:100px repeat(14,1fr);background:var(--bg);border-bottom:2px solid var(--border)}
+.g-week-lbl{padding:4px 8px;font-size:8px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;border-right:1px solid var(--border);display:flex;align-items:center}
+.g-week-cell{padding:4px 2px;text-align:center;font-size:9px;color:var(--muted);border-right:1px solid var(--border)}
+.g-week-cell:last-child{border-right:none}
+.g-week-cell.now{color:var(--danger);font-weight:700;background:rgba(251,113,133,.08)}
+.g-week-cell.past{color:var(--muted2)}
+.g-phase-row,.g-task-row{display:grid;grid-template-columns:100px repeat(14,1fr);border-bottom:1px solid var(--border)}
+.g-phase-row{min-height:40px}
+.g-task-row{min-height:28px;background:rgba(255,255,255,.01)}
+.g-row-lbl{padding:0 8px;display:flex;flex-direction:column;justify-content:center;
+  border-right:1px solid var(--border);background:var(--surface)}
+.g-phase-row .g-row-lbl{background:var(--surface2)}
+.g-row-name{font-size:9px;font-weight:700}
+.g-row-desc{font-size:7.5px;color:var(--muted);margin-top:1px}
+.g-cell{border-right:1px solid rgba(30,33,48,.6);position:relative}
+.g-cell:last-child{border-right:none}
+.g-cell.now-col{background:rgba(251,113,133,.04)}
+.g-cell.past-col{background:rgba(255,255,255,.005)}
+.g-section{display:grid;grid-template-columns:100px 1fr;background:var(--bg);border-bottom:1px solid var(--border)}
+.g-section-lbl{padding:5px 8px;font-size:7.5px;color:var(--muted);letter-spacing:.18em;text-transform:uppercase;border-right:1px solid var(--border)}
+.g-milestone-row{display:grid;grid-template-columns:100px repeat(14,1fr);min-height:44px;border-bottom:1px solid var(--border)}
+.g-milestone-cell{position:relative;border-right:1px solid rgba(30,33,48,.6);display:flex;align-items:center;justify-content:center}
+.g-milestone-cell:last-child{border-right:none}
+.g-diamond{width:10px;height:10px;background:var(--danger);transform:rotate(45deg);box-shadow:0 0 8px rgba(251,113,133,.5)}
+.g-diamond.final{background:#fff;box-shadow:0 0 10px rgba(255,255,255,.6)}
+.g-diamond.past-m{opacity:.35}
+.g-diamond-lbl{position:absolute;top:calc(50% + 10px);font-size:6px;color:var(--danger);white-space:nowrap;text-align:center;pointer-events:none}
+
+/* ── TASKS ── */
+.tasks-list{padding:8px 16px 80px}
+.phase-group-header{display:flex;align-items:center;gap:8px;padding:12px 0 8px;cursor:pointer}
+.phase-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.phase-group-header h3{font-size:13px;font-weight:700;flex:1}
+.phase-group-header .phase-pct{font-size:12px;color:var(--muted)}
+.phase-progress{height:2px;background:var(--border);border-radius:1px;margin-bottom:8px;overflow:hidden}
+.phase-progress-fill{height:100%;border-radius:1px;transition:width .4s}
+.task-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:12px 14px;margin-bottom:8px;display:flex;gap:12px;align-items:flex-start;
+  cursor:pointer;transition:border-color .15s,background .15s;position:relative;overflow:hidden}
+.task-card:active{background:var(--surface2)}
+.task-card.done{opacity:.55}
+.task-card.done .task-name{text-decoration:line-through;color:var(--muted)}
+.task-card.current{border-color:var(--accent)}
+.task-card.current::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent);border-radius:3px 0 0 3px}
+.task-card.overdue{border-color:var(--danger)}
+.task-card.overdue::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--danger);border-radius:3px 0 0 3px}
+.task-check{width:22px;height:22px;border-radius:50%;border:2px solid var(--border2);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s,border-color .15s;margin-top:1px}
+.task-card.done .task-check{background:var(--success);border-color:var(--success)}
+.task-check-inner{font-size:11px;color:#fff;opacity:0;transition:opacity .15s}
+.task-card.done .task-check-inner{opacity:1}
+.task-info{flex:1;min-width:0}
+.task-name{font-size:14px;font-weight:600;line-height:1.3}
+.task-meta{display:flex;gap:8px;margin-top:5px;flex-wrap:wrap}
+.task-badge{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:600;background:var(--surface2);color:var(--muted);letter-spacing:.05em}
+.task-badge.week{background:rgba(91,141,238,.15);color:var(--accent)}
+.task-badge.done-badge{background:rgba(52,211,153,.15);color:var(--success)}
+.task-badge.current-badge{background:rgba(91,141,238,.2);color:var(--accent)}
+.task-badge.overdue-badge{background:rgba(251,113,133,.15);color:var(--danger)}
+.task-output{font-size:11px;color:var(--muted);margin-top:4px;line-height:1.4}
+.task-edit-btn{width:28px;height:28px;border-radius:8px;background:var(--surface2);
+  border:1px solid var(--border2);color:var(--muted);font-size:13px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+
+/* ── FAB ── */
+.fab{position:fixed;right:20px;bottom:calc(var(--safe-bottom) + 72px);
+  width:52px;height:52px;border-radius:50%;background:var(--accent);color:#fff;font-size:24px;
+  border:none;cursor:pointer;z-index:200;display:none;align-items:center;justify-content:center;
+  box-shadow:0 4px 20px rgba(91,141,238,.5);transition:transform .15s}
+.fab:active{transform:scale(.92)}
+
+/* ── BOTTOM NAV ── */
+.bottom-nav{display:flex;background:var(--surface);border-top:1px solid var(--border);padding-bottom:var(--safe-bottom);flex-shrink:0}
+.nav-item{flex:1;padding:10px 4px;display:flex;flex-direction:column;align-items:center;gap:3px;
+  cursor:pointer;color:var(--muted);transition:color .15s;font-size:10px;font-weight:600;letter-spacing:.05em}
+.nav-item.active{color:var(--accent)}
+.nav-icon{font-size:20px;line-height:1}
+
+/* ── MILESTONES ── */
+.milestones-list{padding:8px 16px 80px}
+.milestone-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:14px;margin-bottom:10px;display:flex;gap:12px;align-items:center}
+.milestone-card.past{opacity:.45}
+.milestone-card.upcoming{border-color:rgba(251,113,133,.35)}
+.milestone-card.today-m{border-color:var(--danger);background:rgba(251,113,133,.06)}
+.m-icon{font-size:22px;flex-shrink:0}
+.m-info{flex:1}
+.m-name{font-size:14px;font-weight:700}
+.m-date{font-size:11px;color:var(--muted);margin-top:2px}
+.m-days{font-size:13px;font-weight:800;padding:4px 10px;border-radius:20px;white-space:nowrap}
+.m-days.past{background:rgba(90,95,120,.15);color:var(--muted)}
+.m-days.soon{background:rgba(251,113,133,.15);color:var(--danger)}
+.m-days.ok{background:rgba(91,141,238,.15);color:var(--accent)}
+
+/* ── MODALS ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;
+  display:flex;align-items:flex-end;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity .2s}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:20px 20px 0 0;
+  width:100%;max-width:480px;padding:0 0 calc(var(--safe-bottom) + 16px);
+  transform:translateY(100%);transition:transform .3s cubic-bezier(.32,0,.67,0);
+  max-height:90vh;overflow-y:auto}
+.modal-overlay.open .modal{transform:translateY(0)}
+.modal-handle{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:12px auto 16px}
+.modal-title{font-size:17px;font-weight:700;padding:0 20px 16px;border-bottom:1px solid var(--border)}
+.modal-body{padding:16px 20px}
+.modal-footer{padding:12px 20px 0;display:flex;gap:10px}
+.form-group{margin-bottom:14px}
+.form-label{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;display:block}
+.form-input,.form-select,.form-textarea{width:100%;background:var(--surface2);border:1px solid var(--border2);
+  border-radius:10px;padding:11px 13px;color:var(--text);font-size:15px;font-family:inherit;outline:none;transition:border-color .15s}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--accent)}
+.form-select{appearance:none;-webkit-appearance:none}
+.form-textarea{min-height:70px;resize:none}
+.btn{flex:1;padding:13px;border-radius:12px;border:none;font-size:15px;font-weight:700;cursor:pointer;transition:opacity .15s}
+.btn:active{opacity:.8}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-danger{background:rgba(251,113,133,.2);color:var(--danger);border:1px solid rgba(251,113,133,.3)}
+.btn-ghost{background:var(--surface2);color:var(--text);border:1px solid var(--border2)}
+.menu-item{display:flex;align-items:center;gap:12px;padding:14px 20px;cursor:pointer;border-bottom:1px solid var(--border)}
+.menu-item:last-child{border-bottom:none}
+.menu-item:active{background:var(--surface2)}
+.menu-icon{font-size:18px;width:28px;text-align:center}
+.menu-text{flex:1}
+.menu-title-t{font-size:15px;font-weight:600}
+.menu-sub{font-size:11px;color:var(--muted);margin-top:1px}
+.menu-arrow{color:var(--muted);font-size:14px}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:calc(var(--safe-bottom) + 80px);left:50%;
+  transform:translateX(-50%) translateY(20px);opacity:0;
+  background:var(--text);color:var(--bg);font-size:13px;font-weight:600;
+  padding:10px 18px;border-radius:20px;z-index:1000;pointer-events:none;
+  transition:opacity .2s,transform .2s;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── LOADING ── */
+.loading-screen{position:fixed;inset:0;background:var(--bg);z-index:999;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+.loading-spinner{width:36px;height:36px;border:3px solid var(--border);
+  border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:14px;color:var(--muted)}
+
+/* ── SETUP SCREEN ── */
+.setup-screen{padding:32px 24px;max-width:480px;margin:0 auto}
+.setup-screen h2{font-size:22px;font-weight:800;margin-bottom:8px}
+.setup-screen p{font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:24px}
+.setup-step{background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:16px;margin-bottom:12px;display:flex;gap:12px;align-items:flex-start}
+.setup-num{width:28px;height:28px;border-radius:50%;background:var(--accent);
+  color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.setup-text{flex:1;font-size:13px;line-height:1.5;color:var(--muted)}
+.setup-text strong{color:var(--text)}
+code{background:var(--surface2);border:1px solid var(--border);border-radius:4px;
+  padding:1px 5px;font-size:11px;font-family:monospace;color:var(--accent)}
+
+::-webkit-scrollbar{width:0;height:0}
+.week-chip{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:var(--accent);color:#fff;margin-left:6px}
+.empty-state{text-align:center;padding:48px 32px;color:var(--muted)}
+.empty-state .empty-icon{font-size:48px;margin-bottom:12px}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div class="loading-screen" id="loadingScreen">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Conectando...</div>
+</div>
+
+<div id="app" style="display:none">
+  <div class="topbar">
+    <div class="topbar-title">
+      <h1>TFM Gantt <span class="week-chip" id="currentWeekChip">S1</span></h1>
+      <p id="todayStr"></p>
+    </div>
+    <div class="sync-dot" id="syncDot" title="Estado sincronización"></div>
+    <button class="icon-btn" onclick="openModal('menuModal')">⋯</button>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('home')" id="tab-home">Inicio</div>
+    <div class="tab" onclick="switchTab('gantt')" id="tab-gantt">Gantt</div>
+    <div class="tab" onclick="switchTab('tasks')" id="tab-tasks">Tareas</div>
+    <div class="tab" onclick="switchTab('hitos')" id="tab-hitos">Hitos</div>
+  </div>
+
+  <!-- HOME -->
+  <div class="view" id="view-home">
+    <div class="today-banner">
+      <div class="pulse-dot"></div>
+      <div class="today-banner-text">
+        <strong id="bannerTitle">Cargando...</strong>
+        <span id="bannerSub"></span>
+      </div>
+      <div class="days-left" id="daysLeft">—</div>
+    </div>
+    <div class="overview-cards">
+      <div class="ov-card">
+        <div class="ov-label">Progreso</div>
+        <div class="ov-val" id="pctDone" style="color:var(--accent)">0%</div>
+        <div class="ov-sub" id="tasksDone">0 / 0 tareas</div>
+        <div class="mini-bar"><div class="mini-bar-fill" id="mainProgressBar" style="width:0%;background:var(--accent)"></div></div>
+      </div>
+      <div class="ov-card">
+        <div class="ov-label">Semana actual</div>
+        <div class="ov-val" id="currentWeekNum" style="color:var(--f3)">—</div>
+        <div class="ov-sub">de 14 semanas</div>
+        <div class="mini-bar"><div class="mini-bar-fill" id="weekProgressBar" style="width:0%;background:var(--f3)"></div></div>
+      </div>
+      <div class="ov-card">
+        <div class="ov-label">Fase actual</div>
+        <div class="ov-val" id="currentPhaseNum" style="font-size:16px">—</div>
+        <div class="ov-sub" id="currentPhaseName"></div>
+      </div>
+      <div class="ov-card">
+        <div class="ov-label">Próximo hito</div>
+        <div class="ov-val" id="nextMilestoneDays" style="color:var(--danger)">—</div>
+        <div class="ov-sub" id="nextMilestoneName">días restantes</div>
+      </div>
+    </div>
+    <div class="section-header"><h2>Esta semana</h2><button onclick="switchTab('tasks')">Ver todas →</button></div>
+    <div style="padding:0 16px 16px" id="homeTasksList"></div>
+    <div class="section-header"><h2>Próximos hitos</h2><button onclick="switchTab('hitos')">Ver todos →</button></div>
+    <div style="padding:0 16px 80px" id="homeMilestonesList"></div>
+  </div>
+
+  <!-- GANTT -->
+  <div class="view hidden" id="view-gantt">
+    <div class="section-header"><h2>Vista Gantt</h2><button onclick="scrollToNow()">Hoy →</button></div>
+    <div class="gantt-wrap">
+      <div class="gantt-scroll" id="ganttScroll">
+        <div class="gantt-inner" id="ganttInner"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TASKS -->
+  <div class="view hidden" id="view-tasks">
+    <div class="tasks-list" id="tasksList"></div>
+  </div>
+
+  <!-- HITOS -->
+  <div class="view hidden" id="view-hitos">
+    <div class="milestones-list" id="milestonesList"></div>
+  </div>
+
+  <button class="fab" onclick="openAddTask()" id="fab">+</button>
+
+  <div class="bottom-nav">
+    <div class="nav-item active" onclick="switchTab('home')" id="nav-home"><div class="nav-icon">⌂</div>Inicio</div>
+    <div class="nav-item" onclick="switchTab('gantt')" id="nav-gantt"><div class="nav-icon">▦</div>Gantt</div>
+    <div class="nav-item" onclick="switchTab('tasks')" id="nav-tasks"><div class="nav-icon">☑</div>Tareas</div>
+    <div class="nav-item" onclick="switchTab('hitos')" id="nav-hitos"><div class="nav-icon">◆</div>Hitos</div>
+  </div>
+</div>
+
+<!-- MODAL: MENU -->
+<div class="modal-overlay" id="menuModal" onclick="closeModal('menuModal')">
+  <div class="modal" onclick="e=>e.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Opciones</div>
+    <div class="menu-item" onclick="openModal('projectModal');closeModal('menuModal')">
+      <div class="menu-icon">⚙️</div>
+      <div class="menu-text"><div class="menu-title-t">Configurar proyecto</div><div class="menu-sub">Fechas de inicio y entrega</div></div>
+      <div class="menu-arrow">›</div>
+    </div>
+    <div class="menu-item" onclick="exportData();closeModal('menuModal')">
+      <div class="menu-icon">📤</div>
+      <div class="menu-text"><div class="menu-title-t">Exportar JSON</div><div class="menu-sub">Copia de seguridad local</div></div>
+      <div class="menu-arrow">›</div>
+    </div>
+    <div class="menu-item" onclick="document.getElementById('importFile').click();closeModal('menuModal')">
+      <div class="menu-icon">📥</div>
+      <div class="menu-text"><div class="menu-title-t">Importar JSON</div><div class="menu-sub">Restaurar copia de seguridad</div></div>
+      <div class="menu-arrow">›</div>
+    </div>
+    <div class="menu-item" onclick="confirmReset()">
+      <div class="menu-icon">🔄</div>
+      <div class="menu-text"><div class="menu-title-t">Restaurar plan original</div><div class="menu-sub">Vuelve al plan TFM por defecto</div></div>
+      <div class="menu-arrow">›</div>
+    </div>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('menuModal')">Cerrar</button></div>
+  </div>
+</div>
+
+<!-- MODAL: TASK -->
+<div class="modal-overlay" id="taskModal" onclick="closeModal('taskModal')">
+  <div class="modal" onclick="e=>e.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="taskModalTitle">Nueva tarea</div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Nombre</label>
+        <input class="form-input" id="taskName" placeholder="Ej: Entrenar modelo baseline" maxlength="80">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Fase</label>
+        <select class="form-select" id="taskPhase">
+          <option value="f1">F1 — Segmentación dataset</option>
+          <option value="f2">F2 — Dataset ML</option>
+          <option value="f3">F3 — Modelos ML/DL</option>
+          <option value="f4">F4 — Evaluación</option>
+          <option value="f5">F5 — Escritura TFM</option>
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="form-group">
+          <label class="form-label">Semana inicio</label>
+          <select class="form-select" id="taskWeekStart">
+            <option value="1">S1</option><option value="2">S2</option><option value="3">S3</option>
+            <option value="4">S4</option><option value="5">S5</option><option value="6">S6</option>
+            <option value="7">S7</option><option value="8">S8</option><option value="9">S9</option>
+            <option value="10">S10</option><option value="11">S11</option><option value="12">S12</option>
+            <option value="13">S13</option><option value="14">S14</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Semana fin</label>
+          <select class="form-select" id="taskWeekEnd">
+            <option value="1">S1</option><option value="2">S2</option><option value="3">S3</option>
+            <option value="4">S4</option><option value="5">S5</option><option value="6">S6</option>
+            <option value="7">S7</option><option value="8">S8</option><option value="9">S9</option>
+            <option value="10">S10</option><option value="11">S11</option><option value="12">S12</option>
+            <option value="13">S13</option><option value="14">S14</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Output esperado (opcional)</label>
+        <textarea class="form-textarea" id="taskOutput" placeholder="Ej: Dataset limpio listo para ML"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="taskDeleteBtn" onclick="deleteTask()" style="display:none">Eliminar</button>
+      <button class="btn btn-ghost" onclick="closeModal('taskModal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveTask()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: PROJECT -->
+<div class="modal-overlay" id="projectModal" onclick="closeModal('projectModal')">
+  <div class="modal" onclick="e=>e.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Configurar proyecto</div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Fecha de inicio (Semana 1)</label>
+        <input class="form-input" type="date" id="projStart">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Fecha de entrega final</label>
+        <input class="form-input" type="date" id="projEnd">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Número de semanas</label>
+        <select class="form-select" id="projWeeks">
+          <option value="10">10 semanas</option>
+          <option value="12">12 semanas</option>
+          <option value="14" selected>14 semanas</option>
+          <option value="16">16 semanas</option>
+          <option value="20">20 semanas</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('projectModal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveProject()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ═══════════════════════════════════════
+     FIREBASE SDK
+═══════════════════════════════════════ -->
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import {
+  getFirestore, doc, getDoc, setDoc, onSnapshot, collection
+} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+// ─────────────────────────────────────────────
+// CONSTANTS
+// ─────────────────────────────────────────────
+const PHASE_COLORS = { f1:'#2dd4bf', f2:'#38bdf8', f3:'#a78bfa', f4:'#fbbf24', f5:'#f472b6' };
+const PHASE_NAMES  = { f1:'F1 — Segmentación', f2:'F2 — Dataset ML', f3:'F3 — Modelos ML/DL', f4:'F4 — Evaluación', f5:'F5 — Escritura TFM' };
+const PHASE_SHORT  = { f1:'F1 Segm.', f2:'F2 Dataset', f3:'F3 Modelos', f4:'F4 Eval.', f5:'F5 Escrit.' };
+
+const DEFAULT_PROJECT = { startDate:'2025-03-01', endDate:'2025-06-15', totalWeeks:14 };
+
+const DEFAULT_TASKS = [
+  {id:'t01',phase:'f1',name:'Segmentación tumor–stroma en todas las muestras',weekStart:1,weekEnd:1,done:false,output:'Dataset final con etiquetas'},
+  {id:'t02',phase:'f1',name:'Revisar resultados y generar dataset limpio',weekStart:1,weekEnd:1,done:false,output:'Scripts reproducibles'},
+  {id:'t03',phase:'f2',name:'Definir features y limpieza de variables',weekStart:2,weekEnd:2,done:false,output:'Dataset preliminar ML-ready'},
+  {id:'t04',phase:'f2',name:'Reducción dimensional (PCA o similar)',weekStart:2,weekEnd:2,done:false,output:'Features seleccionadas'},
+  {id:'t05',phase:'f2',name:'División train / validation / test',weekStart:3,weekEnd:3,done:false,output:'Dataset final para modelos'},
+  {id:'t06',phase:'f2',name:'Análisis de balanceo de clases y normalización',weekStart:3,weekEnd:3,done:false,output:'Dataset balanceado'},
+  {id:'t07',phase:'f3',name:'Entrenar Logistic Regression, RF, XGBoost',weekStart:4,weekEnd:4,done:false,output:'Tabla comparativa baseline'},
+  {id:'t08',phase:'f3',name:'Optimización ML (hyperparameter tuning)',weekStart:5,weekEnd:5,done:false,output:'Mejores modelos ML clásicos'},
+  {id:'t09',phase:'f3',name:'Arquitectura MLP y entrenamiento inicial',weekStart:6,weekEnd:6,done:false,output:'Primer modelo DL funcional'},
+  {id:'t10',phase:'f3',name:'DL tuning, regularización y comparación',weekStart:7,weekEnd:7,done:false,output:'Modelo DL optimizado'},
+  {id:'t11',phase:'f4',name:'Selección modelo final y análisis de resultados',weekStart:8,weekEnd:8,done:false,output:'Modelo definitivo'},
+  {id:'t12',phase:'f4',name:'Evaluación espacial en muestras completas',weekStart:9,weekEnd:9,done:false,output:'Mapas espaciales'},
+  {id:'t13',phase:'f4',name:'Interpretación: importancia de variables y figuras',weekStart:10,weekEnd:10,done:false,output:'Figuras finales del TFM'},
+  {id:'t14',phase:'f5',name:'Redactar métodos, datos y pipeline',weekStart:11,weekEnd:11,done:false,output:'Sección métodos completa'},
+  {id:'t15',phase:'f5',name:'Redactar resultados, discusión y conclusiones',weekStart:12,weekEnd:12,done:false,output:'Sección resultados completa'},
+  {id:'t16',phase:'f5',name:'Revisión tutor + correcciones + figuras',weekStart:13,weekEnd:13,done:false,output:'TFM revisado'},
+  {id:'t17',phase:'f5',name:'Versión final y preparar entrega 🎓',weekStart:14,weekEnd:14,done:false,output:'TFM entregado'},
+];
+
+const DEFAULT_MILESTONES = [
+  {id:'m1',name:'Dataset etiquetado',date:'2025-03-15',icon:'🗂️'},
+  {id:'m2',name:'Dataset ML listo',date:'2025-04-05',icon:'⚙️'},
+  {id:'m3',name:'Modelos baseline',date:'2025-04-25',icon:'📊'},
+  {id:'m4',name:'Modelo final',date:'2025-05-20',icon:'🤖'},
+  {id:'m5',name:'Figuras finales',date:'2025-05-30',icon:'📈'},
+  {id:'m6',name:'TFM terminado',date:'2025-06-10',icon:'✍️'},
+  {id:'m7',name:'ENTREGA FINAL',date:'2025-06-15',icon:'🎓'},
+];
+
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+let db = null;
+let state = { project: DEFAULT_PROJECT, tasks: DEFAULT_TASKS, milestones: DEFAULT_MILESTONES };
+let editingTaskId = null;
+let unsubscribe = null;
+
+// ─────────────────────────────────────────────
+// FIREBASE INIT
+// ─────────────────────────────────────────────
+async function initFirebase() {
+  const isConfigured = FIREBASE_CONFIG.apiKey && !FIREBASE_CONFIG.apiKey.includes('PEGA_AQUI');
+
+  if (!isConfigured) {
+    // Show setup guide
+    document.getElementById('loadingScreen').innerHTML = `
+      <div class="setup-screen view" style="overflow-y:auto;height:100%;padding:32px 20px 40px">
+        <div style="font-size:32px;margin-bottom:12px">🔥</div>
+        <h2>Configura Firebase</h2>
+        <p>Necesitas conectar Firebase para que los datos se sincronicen entre dispositivos. Solo hay que hacerlo una vez.</p>
+        <div class="setup-step"><div class="setup-num">1</div><div class="setup-text">Ve a <strong>console.firebase.google.com</strong> e inicia sesión con tu cuenta de Google</div></div>
+        <div class="setup-step"><div class="setup-num">2</div><div class="setup-text">Pulsa <strong>"Añadir proyecto"</strong> → ponle nombre (ej: <code>tfm-gantt</code>) → desactiva Analytics → Crear proyecto</div></div>
+        <div class="setup-step"><div class="setup-num">3</div><div class="setup-text">En el panel del proyecto, haz clic en el icono <strong>&lt;/&gt; Web</strong> → Registra la app → copia el objeto <code>firebaseConfig</code></div></div>
+        <div class="setup-step"><div class="setup-num">4</div><div class="setup-text">En el menú lateral: <strong>Firestore Database</strong> → Crear base de datos → Modo de prueba → Activar</div></div>
+        <div class="setup-step"><div class="setup-num">5</div><div class="setup-text">Abre este archivo HTML en un editor de texto, busca la sección <code>FIREBASE_CONFIG</code> al inicio y pega los valores que copiaste</div></div>
+        <div class="setup-step"><div class="setup-num">6</div><div class="setup-text">Guarda el archivo y súbelo a <strong>GitHub Pages</strong> (ver instrucciones en el README)</div></div>
+        <div style="margin-top:24px;padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:12px;font-size:12px;color:var(--muted);line-height:1.7">
+          💡 <strong style="color:var(--text)">Tip:</strong> El plan gratuito de Firebase (Spark) es más que suficiente para este proyecto. No necesitas tarjeta de crédito.
+        </div>
+      </div>`;
+    return;
+  }
+
+  try {
+    setSyncState('syncing');
+    const app = initializeApp(FIREBASE_CONFIG);
+    db = getFirestore(app);
+
+    const docRef = doc(db, 'projects', PROJECT_ID);
+    const snap = await getDoc(docRef);
+
+    if (snap.exists()) {
+      const data = snap.data();
+      state = {
+        project: data.project || DEFAULT_PROJECT,
+        tasks: data.tasks || DEFAULT_TASKS,
+        milestones: data.milestones || DEFAULT_MILESTONES
+      };
+    } else {
+      // First time — save defaults
+      await setDoc(docRef, {
+        project: DEFAULT_PROJECT,
+        tasks: DEFAULT_TASKS,
+        milestones: DEFAULT_MILESTONES,
+        updatedAt: new Date().toISOString()
+      });
+    }
+
+    // Real-time listener
+    unsubscribe = onSnapshot(docRef, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        state = {
+          project: data.project || state.project,
+          tasks: data.tasks || state.tasks,
+          milestones: data.milestones || state.milestones
+        };
+        renderAll();
+        setSyncState('synced');
+      }
+    }, () => setSyncState('error'));
+
+    setSyncState('synced');
+    document.getElementById('loadingScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    renderAll();
+    setTimeout(() => setSyncState('synced'), 1500);
+
+  } catch(err) {
+    console.error(err);
+    setSyncState('error');
+    // Fallback to offline mode
+    document.getElementById('loadingScreen').innerHTML =
+      `<div style="text-align:center;padding:32px"><div style="font-size:40px;margin-bottom:16px">⚠️</div>
+       <div style="font-size:16px;color:var(--danger);margin-bottom:8px">Error de conexión</div>
+       <div style="font-size:13px;color:var(--muted);margin-bottom:24px">Comprueba tu configuración de Firebase</div>
+       <div style="font-size:11px;color:var(--muted);background:var(--surface);padding:12px;border-radius:8px;text-align:left;font-family:monospace">${err.message}</div></div>`;
+  }
+}
+
+// ─────────────────────────────────────────────
+// SAVE TO FIREBASE
+// ─────────────────────────────────────────────
+let saveTimer = null;
+async function saveToCloud() {
+  if (!db) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    try {
+      setSyncState('syncing');
+      await setDoc(doc(db, 'projects', PROJECT_ID), {
+        project: state.project,
+        tasks: state.tasks,
+        milestones: state.milestones,
+        updatedAt: new Date().toISOString()
+      });
+      setSyncState('synced');
+    } catch(e) {
+      setSyncState('error');
+      showToast('⚠ Error al guardar');
+    }
+  }, 600);
+}
+
+function setSyncState(s) {
+  const dot = document.getElementById('syncDot');
+  dot.className = 'sync-dot ' + s;
+  dot.title = { synced:'Sincronizado ✓', syncing:'Guardando...', error:'Error de sincronización' }[s] || '';
+}
+
+// ─────────────────────────────────────────────
+// DATE HELPERS
+// ─────────────────────────────────────────────
+function parseDate(s) { const [y,m,d] = s.split('-').map(Number); return new Date(y,m-1,d); }
+function formatDate(d) { return d.toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}); }
+
+function getCurrentWeek() {
+  const now = new Date(); now.setHours(0,0,0,0);
+  const start = parseDate(state.project.startDate);
+  const diff = Math.floor((now - start) / (7*24*3600*1000));
+  return diff + 1;
+}
+
+function daysUntil(dateStr) {
+  const t = parseDate(dateStr), now = new Date();
+  t.setHours(0,0,0,0); now.setHours(0,0,0,0);
+  return Math.round((t - now) / (24*3600*1000));
+}
+
+// ─────────────────────────────────────────────
+// RENDER ALL
+// ─────────────────────────────────────────────
+function renderAll() {
+  updateTopBar(); renderHome(); renderGantt(); renderTasksView(); renderMilestonesView();
+}
+
+function updateTopBar() {
+  const cw = getCurrentWeek();
+  const chip = document.getElementById('currentWeekChip');
+  const totalW = state.project.totalWeeks || 14;
+  chip.textContent = cw >= 1 && cw <= totalW ? `S${cw}` : (cw < 1 ? 'Inicio' : 'Final');
+  document.getElementById('todayStr').textContent =
+    new Date().toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});
+}
+
+// ─────────────────────────────────────────────
+// HOME
+// ─────────────────────────────────────────────
+function renderHome() {
+  const cw = getCurrentWeek();
+  const totalW = state.project.totalWeeks || 14;
+  const dl = daysUntil(state.project.endDate);
+  const total = state.tasks.length;
+  const done = state.tasks.filter(t => t.done).length;
+  const pct = total ? Math.round(done/total*100) : 0;
+
+  // Banner
+  const currentTasks = state.tasks.filter(t => t.weekStart <= cw && t.weekEnd >= cw && !t.done);
+  const curPhase = state.tasks.find(t => t.weekStart <= cw && t.weekEnd >= cw)?.phase;
+  document.getElementById('bannerTitle').textContent =
+    cw >= 1 && cw <= totalW ? `Semana ${cw} — ${curPhase ? PHASE_SHORT[curPhase] : 'TFM'}` :
+    (cw < 1 ? 'Antes del inicio' : '¡Proyecto finalizado! 🎓');
+  document.getElementById('bannerSub').textContent =
+    currentTasks.length ? currentTasks.slice(0,2).map(t => t.name.split(' ').slice(0,4).join(' ')).join(' · ') :
+    (done === total ? '¡Todas las tareas completadas! 🎉' : 'Sin tareas pendientes esta semana');
+  document.getElementById('daysLeft').textContent = dl > 0 ? `${dl}d` : (dl === 0 ? '¡Hoy!' : '🎓');
+
+  // Stats
+  document.getElementById('pctDone').textContent = pct + '%';
+  document.getElementById('tasksDone').textContent = `${done} / ${total} tareas`;
+  document.getElementById('mainProgressBar').style.width = pct + '%';
+  document.getElementById('currentWeekNum').textContent = Math.max(1, Math.min(cw, totalW));
+  document.getElementById('weekProgressBar').style.width = Math.max(0, Math.min(100, cw/totalW*100)) + '%';
+
+  if (curPhase) {
+    document.getElementById('currentPhaseNum').textContent = curPhase.toUpperCase();
+    document.getElementById('currentPhaseNum').style.color = PHASE_COLORS[curPhase];
+    document.getElementById('currentPhaseName').textContent = PHASE_NAMES[curPhase].split(' — ')[1];
+  }
+
+  // Next milestone
+  const upcoming = state.milestones.map(m => ({...m, days: daysUntil(m.date)})).filter(m => m.days >= 0).sort((a,b) => a.days - b.days);
+  if (upcoming.length) {
+    document.getElementById('nextMilestoneDays').textContent = upcoming[0].days === 0 ? '¡Hoy!' : upcoming[0].days;
+    document.getElementById('nextMilestoneName').textContent = upcoming[0].name;
+  }
+
+  // Week tasks
+  const weekTasks = state.tasks.filter(t => t.weekStart <= cw && t.weekEnd >= cw);
+  document.getElementById('homeTasksList').innerHTML = weekTasks.length
+    ? weekTasks.map(t => taskCardHTML(t, cw)).join('')
+    : '<div class="empty-state"><div class="empty-icon">📋</div><p>No hay tareas para esta semana</p></div>';
+
+  // Upcoming milestones (top 3)
+  const top3 = state.milestones.map(m => ({...m, days: daysUntil(m.date)})).filter(m => m.days >= -1).sort((a,b) => a.days - b.days).slice(0,3);
+  document.getElementById('homeMilestonesList').innerHTML = top3.map(milestoneCardHTML).join('') ||
+    '<div class="empty-state"><div class="empty-icon">◆</div><p>No hay hitos próximos</p></div>';
+}
+
+function taskCardHTML(t, cw) {
+  const isCurrent = t.weekStart <= cw && t.weekEnd >= cw;
+  const isOverdue = t.weekEnd < cw && !t.done;
+  let cls = 'task-card' + (t.done?' done':isOverdue?' overdue':isCurrent?' current':'');
+  let badge = `<span class="task-badge week">S${t.weekStart}${t.weekEnd>t.weekStart?'–S'+t.weekEnd:''}</span>`;
+  if (t.done) badge += `<span class="task-badge done-badge">✓ Completada</span>`;
+  else if (isOverdue) badge += `<span class="task-badge overdue-badge">⚠ Atrasada</span>`;
+  else if (isCurrent) badge += `<span class="task-badge current-badge">▶ Esta semana</span>`;
+  const color = PHASE_COLORS[t.phase];
+  return `<div class="${cls}" onclick="toggleDone('${t.id}')">
+    <div><div class="task-check"><div class="task-check-inner">✓</div></div></div>
+    <div class="task-info">
+      <div class="task-name">${t.name}</div>
+      <div class="task-meta">
+        <span class="task-badge" style="background:${color}22;color:${color}">${PHASE_SHORT[t.phase]}</span>
+        ${badge}
+      </div>
+      ${t.output?`<div class="task-output">→ ${t.output}</div>`:''}
+    </div>
+    <div class="task-edit-btn" onclick="event.stopPropagation();openEdit('${t.id}')">✎</div>
+  </div>`;
+}
+
+function milestoneCardHTML(m) {
+  const days = daysUntil(m.date);
+  let cls = 'milestone-card' + (days<0?' past':days===0?' today-m':days<=7?' upcoming':'');
+  const daysLabel = days<0?'Pasado':days===0?'¡Hoy!':`${days}d`;
+  const daysCls = days<0?'past':days<=7?'soon':'ok';
+  return `<div class="${cls}"><div class="m-icon">${m.icon}</div>
+    <div class="m-info"><div class="m-name">${m.name}</div><div class="m-date">${formatDate(parseDate(m.date))}</div></div>
+    <div class="m-days ${daysCls}">${daysLabel}</div></div>`;
+}
+
+// ─────────────────────────────────────────────
+// GANTT
+// ─────────────────────────────────────────────
+function renderGantt() {
+  const cw = getCurrentWeek();
+  const totalW = state.project.totalWeeks || 14;
+  const start = parseDate(state.project.startDate);
+
+  // Month spans
+  const monthSpans = [];
+  let curM = -1, curSpan = 0;
+  for (let w = 0; w < totalW; w++) {
+    const d = new Date(start); d.setDate(d.getDate() + w*7);
+    const m = d.getMonth();
+    if (m !== curM) { if (curSpan>0) monthSpans.push({label:mLabel(new Date(start.getFullYear(),curM)),span:curSpan}); curM=m;curSpan=1; }
+    else curSpan++;
+  }
+  monthSpans.push({label:mLabel(new Date(start.getFullYear(),curM)),span:curSpan});
+
+  let h = '';
+
+  // Months row
+  h += `<div class="g-months"><div class="g-month-lbl">Fase</div>`;
+  for (const ms of monthSpans) h += `<div class="g-month-cell" style="grid-column:span ${ms.span}">${ms.label}</div>`;
+  h += '</div>';
+
+  // Weeks row
+  h += `<div class="g-weeks"><div class="g-week-lbl">Semana</div>`;
+  for (let w=1;w<=totalW;w++) {
+    const past=w<cw, cur=w===cw;
+    h += `<div class="g-week-cell${cur?' now':past?' past':''}">${cur?'▶ ':''}S${w}</div>`;
+  }
+  h += '</div>';
+
+  // Phases
+  h += `<div class="g-section"><div class="g-section-lbl">Fases</div><div></div></div>`;
+  for (const ph of ['f1','f2','f3','f4','f5']) {
+    const pts = state.tasks.filter(t => t.phase===ph);
+    if (!pts.length) continue;
+    const ps = Math.min(...pts.map(t=>t.weekStart)), pe = Math.max(...pts.map(t=>t.weekEnd));
+    const donePct = Math.round(pts.filter(t=>t.done).length/pts.length*100);
+    const c = PHASE_COLORS[ph];
+    h += `<div class="g-phase-row"><div class="g-row-lbl"><span class="g-row-name" style="color:${c}">${PHASE_SHORT[ph]}</span><span class="g-row-desc">${donePct}% listo</span></div>`;
+    for (let w=1;w<=totalW;w++) {
+      const inP=w>=ps&&w<=pe, past=w<cw, cur=w===cw;
+      h += `<div class="g-cell${cur?' now-col':past?' past-col':''}">`;
+      if (inP) {
+        const r = w===ps&&w===pe?'4px':w===ps?'4px 0 0 4px':w===pe?'0 4px 4px 0':'0';
+        h += `<div style="position:absolute;inset:8px ${w===pe?'2px':'0'} 8px ${w===ps?'2px':'0'};background:${c}${past?'44':'99'};border-radius:${r}"></div>`;
+        if (w===ps) h += `<div style="position:absolute;left:5px;top:50%;transform:translateY(-50%);font-size:7px;font-weight:700;color:${c};z-index:4;pointer-events:none">${PHASE_SHORT[ph]}</div>`;
+      }
+      h += '</div>';
+    }
+    h += '</div>';
+  }
+
+  // Tasks
+  h += `<div class="g-section"><div class="g-section-lbl">Semanas</div><div></div></div>`;
+  for (const t of state.tasks) {
+    const c = PHASE_COLORS[t.phase];
+    h += `<div class="g-task-row"><div class="g-row-lbl"><span class="g-row-name" style="font-size:8px;color:${t.done?'var(--muted)':c}">
+      ${t.done?'✓ ':''}<span style="${t.done?'text-decoration:line-through':''}">${t.name.substring(0,24)}${t.name.length>24?'…':''}</span></span></div>`;
+    for (let w=1;w<=totalW;w++) {
+      const inT=w>=t.weekStart&&w<=t.weekEnd, past=w<cw, cur=w===cw;
+      h += `<div class="g-cell${cur?' now-col':past?' past-col':''}">`;
+      if (inT) {
+        const r=w===t.weekStart&&w===t.weekEnd?'3px':w===t.weekStart?'3px 0 0 3px':w===t.weekEnd?'0 3px 3px 0':'0';
+        h += `<div style="position:absolute;inset:9px ${w===t.weekEnd?'1px':'0'} 9px ${w===t.weekStart?'1px':'0'};background:${c}${t.done?'44':past?'33':'77'};border-radius:${r}"></div>`;
+        if (t.done && w===t.weekStart) h += `<div style="position:absolute;left:3px;top:50%;transform:translateY(-50%);font-size:8px;color:var(--success)">✓</div>`;
+      }
+      h += '</div>';
+    }
+    h += '</div>';
+  }
+
+  // Milestones
+  h += `<div class="g-section"><div class="g-section-lbl">Hitos</div><div></div></div>`;
+  h += `<div class="g-milestone-row"><div class="g-row-lbl"><span class="g-row-name" style="color:var(--danger)">Hitos</span></div>`;
+  for (let w=1;w<=totalW;w++) {
+    const wStart = new Date(start); wStart.setDate(wStart.getDate()+(w-1)*7);
+    const wEnd = new Date(start); wEnd.setDate(wEnd.getDate()+w*7-1);
+    const mInW = state.milestones.filter(m => { const md=parseDate(m.date); return md>=wStart&&md<=wEnd; });
+    const past = w < cw;
+    h += `<div class="g-milestone-cell${w===cw?' now-col':past?' past-col':''}">`;
+    for (const m of mInW) {
+      h += `<div class="g-diamond${m.id==='m7'?' final':''}${past?' past-m':''}" title="${m.name}: ${formatDate(parseDate(m.date))}"></div>
+            <div class="g-diamond-lbl">${m.icon}</div>`;
+    }
+    h += '</div>';
+  }
+  h += '</div>';
+
+  document.getElementById('ganttInner').innerHTML = h;
+}
+
+function mLabel(d) { return d.toLocaleDateString('es-ES',{month:'short'}).toUpperCase().replace('.',''); }
+
+// ─────────────────────────────────────────────
+// TASKS VIEW
+// ─────────────────────────────────────────────
+function renderTasksView() {
+  const cw = getCurrentWeek();
+  let h = '';
+  for (const ph of ['f1','f2','f3','f4','f5']) {
+    const tasks = state.tasks.filter(t => t.phase===ph);
+    if (!tasks.length) continue;
+    const done = tasks.filter(t=>t.done).length;
+    const pct = Math.round(done/tasks.length*100);
+    const c = PHASE_COLORS[ph];
+    h += `<div><div class="phase-group-header">
+      <div class="phase-dot" style="background:${c}"></div>
+      <h3>${PHASE_NAMES[ph]}</h3>
+      <div class="phase-pct">${done}/${tasks.length}</div>
+    </div>
+    <div class="phase-progress"><div class="phase-progress-fill" style="width:${pct}%;background:${c}"></div></div>
+    ${tasks.map(t=>taskCardHTML(t,cw)).join('')}</div>`;
+  }
+  document.getElementById('tasksList').innerHTML = h || '<div class="empty-state"><div class="empty-icon">📋</div><p>Pulsa + para añadir tareas</p></div>';
+}
+
+// ─────────────────────────────────────────────
+// MILESTONES VIEW
+// ─────────────────────────────────────────────
+function renderMilestonesView() {
+  const sorted = state.milestones.map(m=>({...m,days:daysUntil(m.date)})).sort((a,b)=>a.days-b.days);
+  document.getElementById('milestonesList').innerHTML = sorted.map(milestoneCardHTML).join('') ||
+    '<div class="empty-state"><div class="empty-icon">◆</div><p>Sin hitos</p></div>';
+}
+
+// ─────────────────────────────────────────────
+// TASK CRUD (exposed to window)
+// ─────────────────────────────────────────────
+window.toggleDone = function(id) {
+  const t = state.tasks.find(t2=>t2.id===id);
+  if (!t) return;
+  t.done = !t.done;
+  saveToCloud();
+  renderAll();
+  showToast(t.done ? '✓ Tarea completada' : 'Marcada como pendiente');
+};
+
+window.openEdit = function(id) {
+  const t = state.tasks.find(t2=>t2.id===id);
+  if (!t) return;
+  editingTaskId = id;
+  document.getElementById('taskModalTitle').textContent = 'Editar tarea';
+  document.getElementById('taskName').value = t.name;
+  document.getElementById('taskPhase').value = t.phase;
+  document.getElementById('taskWeekStart').value = t.weekStart;
+  document.getElementById('taskWeekEnd').value = t.weekEnd;
+  document.getElementById('taskOutput').value = t.output || '';
+  document.getElementById('taskDeleteBtn').style.display = 'flex';
+  openModal('taskModal');
+};
+
+window.openAddTask = function() {
+  editingTaskId = null;
+  document.getElementById('taskModalTitle').textContent = 'Nueva tarea';
+  document.getElementById('taskName').value = '';
+  document.getElementById('taskPhase').value = 'f1';
+  document.getElementById('taskWeekStart').value = Math.max(1, Math.min(getCurrentWeek(), 14));
+  document.getElementById('taskWeekEnd').value = Math.max(1, Math.min(getCurrentWeek(), 14));
+  document.getElementById('taskOutput').value = '';
+  document.getElementById('taskDeleteBtn').style.display = 'none';
+  openModal('taskModal');
+};
+
+window.saveTask = function() {
+  const name = document.getElementById('taskName').value.trim();
+  if (!name) { showToast('⚠ Escribe un nombre'); return; }
+  const phase = document.getElementById('taskPhase').value;
+  const ws = parseInt(document.getElementById('taskWeekStart').value);
+  const we = Math.max(ws, parseInt(document.getElementById('taskWeekEnd').value));
+  const output = document.getElementById('taskOutput').value.trim();
+  if (editingTaskId) {
+    const t = state.tasks.find(t2=>t2.id===editingTaskId);
+    if (t) Object.assign(t, {name,phase,weekStart:ws,weekEnd:we,output});
+  } else {
+    state.tasks.push({id:'t'+Date.now(),phase,name,weekStart:ws,weekEnd:we,done:false,output});
+  }
+  saveToCloud(); closeModal('taskModal'); renderAll();
+  showToast(editingTaskId ? 'Tarea actualizada' : 'Tarea añadida ✓');
+};
+
+window.deleteTask = function() {
+  if (!editingTaskId) return;
+  state.tasks = state.tasks.filter(t=>t.id!==editingTaskId);
+  saveToCloud(); closeModal('taskModal'); renderAll();
+  showToast('Tarea eliminada');
+};
+
+window.saveProject = function() {
+  const s = document.getElementById('projStart').value;
+  const e = document.getElementById('projEnd').value;
+  const w = parseInt(document.getElementById('projWeeks').value);
+  if (!s||!e) { showToast('⚠ Introduce las fechas'); return; }
+  state.project = {...state.project, startDate:s, endDate:e, totalWeeks:w};
+  saveToCloud(); closeModal('projectModal'); renderAll();
+  showToast('Proyecto actualizado ✓');
+};
+
+window.confirmReset = function() {
+  if (!confirm('¿Restaurar el plan TFM original? Se perderán los cambios.')) return;
+  state = { project:{...DEFAULT_PROJECT}, tasks:DEFAULT_TASKS.map(t=>({...t})), milestones:DEFAULT_MILESTONES.map(m=>({...m})) };
+  saveToCloud(); closeModal('menuModal'); renderAll();
+  showToast('Plan restaurado ✓');
+};
+
+window.exportData = function() {
+  const blob = new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+  const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='tfm-gantt-backup.json'; a.click();
+  showToast('Exportado ✓');
+};
+
+window.importData = function(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    try {
+      const d = JSON.parse(ev.target.result);
+      if (d.tasks&&d.project) { state=d; saveToCloud(); renderAll(); showToast('Importado ✓'); }
+      else showToast('⚠ Archivo no válido');
+    } catch { showToast('⚠ Error al importar'); }
+  };
+  r.readAsText(file); e.target.value='';
+};
+
+// ─────────────────────────────────────────────
+// UI HELPERS (exposed to window)
+// ─────────────────────────────────────────────
+window.switchTab = function(tab) {
+  ['home','gantt','tasks','hitos'].forEach(t => {
+    document.getElementById(`view-${t}`).classList.toggle('hidden',t!==tab);
+    document.getElementById(`tab-${t}`).classList.toggle('active',t===tab);
+    document.getElementById(`nav-${t}`).classList.toggle('active',t===tab);
+  });
+  document.getElementById('fab').style.display = tab==='tasks'?'flex':'none';
+  if (tab==='gantt') setTimeout(scrollToNow,100);
+};
+
+window.openModal = function(id) { document.getElementById(id).classList.add('open'); };
+window.closeModal = function(id) { document.getElementById(id).classList.remove('open'); };
+
+window.scrollToNow = function() {
+  const gs = document.getElementById('ganttScroll');
+  const cw = getCurrentWeek(); const totalW = state.project.totalWeeks||14;
+  const cellW = (gs.scrollWidth - 100) / totalW;
+  gs.scrollTo({left:Math.max(0,(cw-2)*cellW+100), behavior:'smooth'});
+};
+
+let toastT=null;
+window.showToast = function(msg) {
+  const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show');
+  clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('show'),2200);
+};
+
+// Project modal prefill
+window.openModal = function(id) {
+  if (id==='projectModal') {
+    document.getElementById('projStart').value = state.project.startDate;
+    document.getElementById('projEnd').value = state.project.endDate;
+    document.getElementById('projWeeks').value = state.project.totalWeeks||14;
+  }
+  document.getElementById(id).classList.add('open');
+};
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+initFirebase();
+setInterval(()=>{ updateTopBar(); renderHome(); }, 60000);
+</script>
+</body>
+</html>
