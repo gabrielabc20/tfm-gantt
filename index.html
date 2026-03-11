@@ -14,12 +14,12 @@
      ═══════════════════════════════════════════ -->
 <script>
   const FIREBASE_CONFIG = {
-    apiKey:            "AIzaSyA_bM_ERYTun08m1zlw_1bLY6R1N8awkWo",
-    authDomain:        "tfm-gantt.firebaseapp.com",
-    projectId:         "tfm-gantt",
-    storageBucket:     "tfm-gantt.firebasestorage.app",
-    messagingSenderId: "777924753151",
-    appId:             "1:777924753151:web:55b9ddde4c7864d339feca"
+    apiKey:            "PEGA_AQUI_TU_apiKey",
+    authDomain:        "PEGA_AQUI_TU_authDomain",
+    projectId:         "PEGA_AQUI_TU_projectId",
+    storageBucket:     "PEGA_AQUI_TU_storageBucket",
+    messagingSenderId: "PEGA_AQUI_TU_messagingSenderId",
+    appId:             "PEGA_AQUI_TU_appId"
   };
   // ID único de tu proyecto (cualquier texto sin espacios)
   const PROJECT_ID = "mi-tfm-2026";
@@ -208,8 +208,14 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
 .modal{background:var(--surface);border:1px solid var(--border2);border-radius:20px 20px 0 0;
   width:100%;max-width:480px;padding:0 0 calc(var(--safe-bottom) + 16px);
   transform:translateY(100%);transition:transform .3s cubic-bezier(.32,0,.67,0);
-  max-height:90vh;overflow-y:auto}
+  max-height:85vh;overflow-y:auto;
+  /* iOS: keep modal anchored when keyboard appears */
+  position:relative;z-index:1}
 .modal-overlay.open .modal{transform:translateY(0)}
+/* iOS keyboard: when input focused inside modal, don't shift layout */
+.modal input:focus, .modal textarea:focus, .modal select:focus {
+  position:relative;z-index:2;
+}
 .modal-handle{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:12px auto 16px}
 .modal-title{font-size:17px;font-weight:700;padding:0 20px 16px;border-bottom:1px solid var(--border)}
 .modal-body{padding:16px 20px}
@@ -366,8 +372,8 @@ code{background:var(--surface2);border:1px solid var(--border);border-radius:4px
 </div>
 
 <!-- MODAL: MENU -->
-<div class="modal-overlay" id="menuModal" onclick="closeModal('menuModal')">
-  <div class="modal" onclick="e=>e.stopPropagation()">
+<div class="modal-overlay" id="menuModal" onclick="if(!event.target.closest('.modal'))closeModal('menuModal')">
+  <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-handle"></div>
     <div class="modal-title">Opciones</div>
     <div class="menu-item" onclick="openModal('projectModal');closeModal('menuModal')">
@@ -396,8 +402,8 @@ code{background:var(--surface2);border:1px solid var(--border);border-radius:4px
 </div>
 
 <!-- MODAL: TASK -->
-<div class="modal-overlay" id="taskModal" onclick="closeModal('taskModal')">
-  <div class="modal" onclick="e=>e.stopPropagation()">
+<div class="modal-overlay" id="taskModal" onclick="if(!event.target.closest('.modal'))closeModal('taskModal')">
+  <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-handle"></div>
     <div class="modal-title" id="taskModalTitle">Nueva tarea</div>
     <div class="modal-body">
@@ -451,8 +457,8 @@ code{background:var(--surface2);border:1px solid var(--border);border-radius:4px
 </div>
 
 <!-- MODAL: PROJECT -->
-<div class="modal-overlay" id="projectModal" onclick="closeModal('projectModal')">
-  <div class="modal" onclick="e=>e.stopPropagation()">
+<div class="modal-overlay" id="projectModal" onclick="if(!event.target.closest('.modal'))closeModal('projectModal')">
+  <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-handle"></div>
     <div class="modal-title">Configurar proyecto</div>
     <div class="modal-body">
@@ -1015,8 +1021,28 @@ window.switchTab = function(tab) {
   if (tab==='gantt') setTimeout(scrollToNow,100);
 };
 
-window.openModal = function(id) { document.getElementById(id).classList.add('open'); };
-window.closeModal = function(id) { document.getElementById(id).classList.remove('open'); };
+window.openModal = function(id) {
+  if (id==='projectModal') {
+    document.getElementById('projStart').value = state.project.startDate;
+    document.getElementById('projEnd').value = state.project.endDate;
+    document.getElementById('projWeeks').value = state.project.totalWeeks||14;
+  }
+  const overlay = document.getElementById(id);
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+};
+
+window.closeModal = function(id) {
+  // Don't close if an input/textarea inside is currently focused (iOS keyboard open)
+  const overlay = document.getElementById(id);
+  const focused = document.activeElement;
+  if (focused && overlay.contains(focused) &&
+      (focused.tagName==='INPUT' || focused.tagName==='TEXTAREA' || focused.tagName==='SELECT')) {
+    return; // ignore — user is typing, keyboard triggered a layout shift
+  }
+  overlay.classList.remove('open');
+  document.body.style.overflow = '';
+};
 
 window.scrollToNow = function() {
   const gs = document.getElementById('ganttScroll');
@@ -1029,16 +1055,6 @@ let toastT=null;
 window.showToast = function(msg) {
   const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show');
   clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('show'),2200);
-};
-
-// Project modal prefill
-window.openModal = function(id) {
-  if (id==='projectModal') {
-    document.getElementById('projStart').value = state.project.startDate;
-    document.getElementById('projEnd').value = state.project.endDate;
-    document.getElementById('projWeeks').value = state.project.totalWeeks||14;
-  }
-  document.getElementById(id).classList.add('open');
 };
 
 // ─────────────────────────────────────────────
